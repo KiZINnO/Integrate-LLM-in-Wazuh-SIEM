@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <title>Alerts and Llama Analysis</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 20px;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4 {
+            color: #333;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        table,
+        th,
+        td {
+            border: 1px solid #ddd;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 8px;
+        }
+
+        th {
+            background-color: #007BFF;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        pre {
+            background: #f8f8f8;
+            padding: 10px;
+            border-left: 4px solid #007BFF;
+            overflow-x: auto;
+        }
+
+        .key {
+            font-weight: bold;
+        }
+
+        ul {
+            margin-left: 20px;
+        }
+
+        section {
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #007BFF;
+            padding-bottom: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Alerts</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Alert Time</th>
+                <th>Alert Data</th>
+            </tr>
+        </thead>
+        <tbody id="alertTableBody">
+            <!-- Alerts will be populated here -->
+        </tbody>
+    </table>
+    <h2>Llama Analysis</h2>
+    <div id="llamaResponse">
+        <!-- Llama response will be shown here -->
+    </div>
+
+    <script>
+        // Function to fetch and display all alerts
+        function fetchAlerts() {
+            fetch('/alerts')
+                .then(response => response.json())
+                .then(alerts => {
+                    const alertTableBody = document.getElementById('alertTableBody');
+                    alertTableBody.innerHTML = ''; // Clear existing content  
+
+                    alerts.forEach(alert => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td><a href="#" onclick="analyzeAlert(${alert.id})">${alert.id}</a></td>
+                            <td>${new Date(alert.alert_time).toLocaleString()}</td>
+                            <td><pre>Full Log: ${alert.alert_data.full_log ? alert.alert_data.full_log : 'N/A'} 
+Rule ID: ${alert.alert_data.rule ? alert.alert_data.rule.id : 'N/A'}
+Rule Level: ${alert.alert_data.rule ? alert.alert_data.rule.level : 'N/A'}
+Rule Description: ${alert.alert_data.rule ? alert.alert_data.rule.description : 'N/A'}</pre></td> 
+                        `;
+                        alertTableBody.appendChild(row);
+                    });
+                })
+                .catch(error => console.error('Error fetching alerts:', error));
+        }
+
+        // Function to analyze a specific alert
+        function analyzeAlert(alertId) {
+            const llamaResponseDiv = document.getElementById('llamaResponse');
+
+            // Display loading message before the request is complete
+            llamaResponseDiv.innerHTML = `<p>Loading response for alert ID ${alertId}...</p>`;
+
+            // Fetch the LLM response
+            fetch(`/alert/${alertId}`)
+                .then(response => response.text()) // Fetch raw text response
+                .then(data => {
+
+                    // Log the raw LLM response to the console
+                    console.log("Raw LLM response:", data);
+
+                    // Parse the LLM response
+                    const cleanMarkdown = data
+                        .replace(/^"|"$/g, "") // Remove outer quotes
+                        .replace(/\\n/g, "\n") // Convert \n to newlines
+                        .replace(/\\"/g, '"'); // Convert \" to "
+
+                    // Render the parsed response
+                    llamaResponseDiv.innerHTML = marked.parse(cleanMarkdown);
+
+                    // Add a title for the response
+                    const title = document.createElement("p");
+                    title.innerHTML = `<strong>Alert Analysis for ID: ${alertId}</strong>`;
+                    llamaResponseDiv.prepend(title); // Add the title above the response
+                })
+                .catch(error => {
+                    console.error('Error fetching Llama response:', error);
+                    llamaResponseDiv.innerHTML = `<p style="color:red;">Failed to fetch response for alert ID ${alertId}. Please try again later.</p>`;
+                });
+        }
+        // Fetch alerts on page load
+        document.addEventListener('DOMContentLoaded', fetchAlerts);
+    </script>
+</body>
+</html>
